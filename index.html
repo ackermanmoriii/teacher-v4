@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Tutor | Interactive Learning (Final Stable)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Marked.js -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+    
+    <!-- Highlight.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+    <!-- Pyodide -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.0/full/pyodide.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700&family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        persian: ['Vazirmatn', 'sans-serif'], 
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        glass: "rgba(30, 41, 59, 0.7)",
+                        accent: "#0ea5e9",
+                        accentHover: "#0284c7",
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.5s ease-out',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(215, 28%, 17%, 1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(210, 29%, 24%, 1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(199, 89%, 28%, 0.2) 0, transparent 50%);
+            color: #e2e8f0;
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .markdown-content {
+            font-family: 'Vazirmatn', 'Inter', sans-serif;
+            line-height: 1.9;
+            direction: rtl;
+            text-align: right;
+        }
+
+        .markdown-content p { margin-bottom: 1rem; }
+        .markdown-content ul, .markdown-content ol { padding-right: 1.5rem; margin-bottom: 1rem; list-style-position: inside; }
+        .markdown-content ul { list-style-type: disc; }
+        .markdown-content ol { list-style-type: decimal; }
+        .markdown-content strong { color: #38bdf8; font-weight: 700; }
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+            color: #f0f9ff;
+            font-weight: 700;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .markdown-content code:not(pre code), 
+        .markdown-content .katex {
+            direction: ltr;
+            unicode-bidi: isolate;
+            font-family: 'JetBrains Mono', monospace;
+            background-color: rgba(255, 255, 255, 0.08);
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.3rem;
+            font-size: 0.9em;
+            margin: 0 3px;
+            display: inline-block;
+            color: #e0e7ff;
+        }
+
+        .markdown-content blockquote {
+            border-right: 4px solid #0ea5e9;
+            background: rgba(14, 165, 233, 0.1);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            color: #cbd5e1;
+        }
+
+        /* --- Code & Output Container Styles --- */
+        .mac-terminal {
+            direction: ltr;
+            text-align: left;
+            background: #1e1e1e;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 1.5rem 0 0.5rem 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+        }
+
+        .mac-header {
+            background: #282c34;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #333;
+        }
+
+        .mac-buttons { display: flex; gap: 6px; }
+        .mac-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .mac-red { background: #ff5f56; }
+        .mac-yellow { background: #ffbd2e; }
+        .mac-green { background: #27c93f; }
+        .lang-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #abb2bf; text-transform: uppercase; }
+
+        .mac-terminal pre { margin: 0; padding: 1.25rem; overflow-x: auto; }
+        .mac-terminal code { background: transparent !important; padding: 0 !important; font-family: 'JetBrains Mono', monospace !important; font-size: 0.95rem; }
+        .hljs { background: transparent !important; }
+        
+        /* --- CRITICAL FIX: Output Area Constraints (Internal Scroll) --- */
+        .exec-output {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 0.5rem;
+            margin-bottom: 1.5rem;
+            direction: ltr;
+            text-align: left;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #ccc;
+            display: none;
+            
+            /* Limit height and enable internal scroll */
+            max-width: 100%;       
+            max-height: 400px; 
+            overflow-x: auto;      
+            overflow-y: auto;    
+            box-sizing: border-box; 
+        }
+
+        .run-code-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #2563eb;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #3b82f6;
+            font-family: 'Inter', sans-serif;
+        }
+        .run-code-btn:hover { background: #1d4ed8; }
+        .run-code-btn:disabled { background: #334155; border-color: #334155; cursor: not-allowed; opacity: 0.7; }
+
+        .katex-display {
+            direction: ltr;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        #filePreviewArea img {
+            max-height: 80px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-sm md:text-base">
+
+    <!-- Header -->
+    <header class="glass-panel p-4 flex justify-between items-center z-20 shrink-0 border-b-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-accent/20 p-2.5 rounded-xl">
+                <i data-lucide="graduation-cap" class="text-accent w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg tracking-tight text-white font-sans">Gemini Tutor</h1>
+                <p class="text-xs text-slate-400 font-sans">Guided Learning Assistant</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <div class="relative group hidden md:block">
+                <input type="password" id="apiKeyInput" placeholder="Enter Gemini API Key" 
+                    class="bg-slate-800/50 border border-slate-600 text-sm rounded-lg focus:ring-accent focus:border-accent block w-56 pl-3 p-2 text-white placeholder-slate-400 outline-none transition-all font-sans">
+            </div>
+            <button onclick="saveApiKey()" class="bg-accent hover:bg-accentHover text-white px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors shadow-lg shadow-accent/20 font-sans">
+                Set Key
+            </button>
+        </div>
+    </header>
+
+    <!-- Chat Area -->
+    <main id="chatContainer" class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scroll-smooth z-10">
+        <!-- Empty State -->
+        <div id="emptyState" class="flex flex-col items-center justify-center h-full text-center space-y-6 opacity-70">
+            <div class="relative">
+                <div class="absolute inset-0 bg-accent blur-3xl opacity-10 rounded-full"></div>
+                <div class="bg-slate-800/50 p-6 rounded-3xl border border-white/5 relative z-10">
+                    <i data-lucide="book-open" class="w-16 h-16 text-accent/80"></i>
+                </div>
+            </div>
+            <div>
+                <h2 class="text-2xl md:text-3xl font-bold text-white mb-3 font-persian">خوش آمدید / Welcome</h2>
+                <p class="text-slate-400 max-w-lg mx-auto font-persian leading-7">
+                    فایل آموزشی خود را آپلود کنید. من محتوا را به صورت قدم به قدم آموزش خواهم داد.<br>
+                    <span class="text-sm opacity-70 font-sans mt-2 block">(Upload a file to begin. I can now run Python code & automatically download charts!)</span>
+                </p>
+            </div>
+            <div class="flex gap-4 text-xs font-mono text-slate-500">
+                <div class="flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> Step-by-Step</div>
+                <div class="flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> Patient</div>
+                <div class="flex items-center gap-1"><i data-lucide="download-cloud" class="w-3 h-3 text-green-500"></i> Code & Download</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Input Area -->
+    <footer class="p-4 md:p-6 shrink-0 z-20">
+        <div class="glass-panel max-w-4xl mx-auto rounded-3xl p-3 flex flex-col relative shadow-2xl transition-all duration-300 ring-1 ring-white/10">
+            
+            <!-- File Preview Area -->
+            <div id="filePreviewArea" class="flex gap-3 px-2 mb-2 hidden animate-fade-in-up">
+                <!-- Previews injected here -->
+            </div>
+
+            <div class="flex items-end gap-2">
+                <!-- File Upload Button -->
+                <button onclick="document.getElementById('fileInput').click()" class="text-slate-400 hover:text-white p-3 hover:bg-white/10 rounded-full transition-all" title="Upload Study Material">
+                    <i data-lucide="paperclip" class="w-5 h-5"></i>
+                </button>
+                <input type="file" id="fileInput" class="hidden" accept="image/*,application/pdf,text/plain,application/json" onchange="handleFileUpload(this)">
+
+                <!-- Text Area -->
+                <textarea id="userInput" rows="1" 
+                    class="w-full bg-transparent text-white p-3 max-h-40 rounded-xl focus:outline-none resize-none font-persian text-right placeholder-slate-500" 
+                    placeholder="پیام خود را بنویسید... (Type your message)"></textarea>
+                
+                <!-- Send Button -->
+                <button onclick="sendMessage()" id="sendBtn" class="bg-white text-slate-900 hover:bg-slate-200 p-3 rounded-full transition-all shadow-lg hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i data-lucide="arrow-up" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="flex justify-between items-center px-4 pt-2 border-t border-white/5 mt-2">
+                <span class="text-[10px] text-slate-500 font-mono flex items-center gap-2" id="pythonStatus">
+                    <span class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                    Initializing Python...
+                </span>
+                <span class="text-[10px] text-accent font-mono opacity-80">POWERED BY GEMINI</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Templates -->
+    
+    <!-- User Message -->
+    <template id="userMsgTemplate">
+        <div class="flex justify-end animate-fade-in-up">
+            <div class="bg-slate-700 text-white px-5 py-3 rounded-2xl rounded-tr-sm max-w-[85%] shadow-lg border border-slate-600">
+                <div class="file-attachment mb-2 hidden"></div>
+                <p class="text-base leading-relaxed dir-rtl text-right font-persian whitespace-pre-wrap"></p>
+            </div>
+        </div>
+    </template>
+
+    <!-- AI Message (Tutor) -->
+    <template id="aiMsgTemplate">
+        <div class="flex justify-start animate-fade-in-up w-full">
+            <div class="glass-panel text-slate-100 px-6 py-5 rounded-3xl rounded-tl-sm max-w-[95%] md:max-w-[85%] shadow-xl border-l-4 border-l-accent w-full overflow-hidden">
+                <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-2">
+                    <div class="flex items-center gap-2">
+                        <div class="bg-accent/20 p-1 rounded-md">
+                            <i data-lucide="bot" class="w-4 h-4 text-accent"></i>
+                        </div>
+                        <span class="text-xs font-mono text-slate-400 tracking-wider">AI TUTOR</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="copy-btn text-slate-400 hover:text-white transition-colors p-1" title="Copy Content">
+                            <i data-lucide="copy" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                <!-- Content Container -->
+                <div class="markdown-content text-base"></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="loadingTemplate">
+        <div class="flex justify-start animate-fade-in-up" id="loadingIndicator">
+            <div class="glass-panel px-5 py-4 rounded-2xl rounded-tl-sm flex items-center gap-3">
+                <span class="text-xs text-slate-400 font-mono mr-2">Thinking...</span>
+                <div class="w-2 h-2 bg-accent rounded-full animate-bounce"></div>
+                <div class="w-2 h-2 bg-accent rounded-full animate-bounce" style="animation-delay: 0.15s"></div>
+                <div class="w-2 h-2 bg-accent rounded-full animate-bounce" style="animation-delay: 0.3s"></div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // --- Core System Configuration ---
+        const SYSTEM_INSTRUCTION = `
+You are a "Guided Learning Application" powered by Gemini. 
+Your Role: A patient, warm, affectionate, and highly structured Tutor.
+Your Source: You MUST primarily use the user's uploaded file(s) as the curriculum source.
+
+PEDAGOGICAL & STYLE MANDATES:
+1. **Warm Tone:** Always be supportive, kind, and encouraging.
+2. **Modular Structure:** DO NOT dump large blocks of text. Break content into small, logical "lessons".
+3. **Sequential Logic:**
+   - **Step 1:** Analyze file content silently.
+   - **Step 2:** Introduce topic briefly and propose outline.
+   - **Step 3:** Teach ONLY the first segment.
+   - **Step 4:** STOP and ask: "Does this make sense?" or "Ready for the next part?"
+   - **Step 5:** Wait for user input.
+   - **Final Step:** Explicitly state when finished.
+4. **Clarity:** Use simple language, analogies, and examples.
+5. **RTL/LTR Segregation (CRITICAL):**
+   - Isolate ALL English technical terms, variable names, or math formulas inside inline code blocks (\`code\`) or distinct code blocks.
+
+NEW FEATURE: DYNAMIC CHART GENERATION (DOWNLOAD MODE)
+6. **Chart Detection & Proposal:** If content has data suitable for visualization, propose generating a relevant chart.
+7. **Python Chart Code Generation:**
+   - If a chart is requested, generate complete Python code.
+   - **CRITICAL LIBRARY & FONT CONFIGURATION:**
+     - **Plotting Library:** Use \`matplotlib.pyplot\`.
+     - **CHART TYPE:** MUST generate a static chart (PNG).
+     - **IMAGE QUALITY:** MUST include \`dpi=300\` in the \`plt.savefig\` command for high resolution.
+     - **AVOID CRASH:** DO NOT include \`plt.close()\` as it causes UI crashes in the execution environment.
+     - **Persian Text Support:**
+       - Import \`arabic_reshaper\` and \`bidi.algorithm.get_display\`.
+       - **Font Integration:** - MANDATORY TRY/EXCEPT BLOCK.
+         - Code MUST look like this:
+           \`\`\`python
+           import matplotlib.pyplot as plt
+           from matplotlib import font_manager
+           
+           try:
+               # Attempt to load Persian font
+               prop = font_manager.FontProperties(fname='Vazirmatn-Regular.ttf')
+           except:
+               # Fallback if font is missing
+               prop = None 
+           \`\`\`
+       - Process ALL Persian text with \`get_display(reshape("Text"))\`.
+       - If \`prop\` is available, pass \`fontproperties=prop\` to title/labels.
+     - **Output:** MUST include \`plt.savefig("chart.png", bbox_inches='tight', dpi=300)\`.
+     - **Structure:** Present code in a \`python\` markdown block.
+8. **User Interaction:**
+   - Instruct user: "Run this Python code to generate the chart file."
+   - Explain that the chart will be **automatically downloaded** to their device.
+`;
+
+        let apiKey = localStorage.getItem('gemini_api_key') || '';
+        let chatHistory = []; 
+        let currentFile = null; 
+        
+        // --- Pyodide (Python) Setup ---
+        let pyodide = null;
+        let pyodideReady = false;
+
+        async function initPyodide() {
+            try {
+                pyodide = await loadPyodide();
+                await pyodide.loadPackage(["matplotlib", "micropip", "numpy", "pandas"]);
+                
+                const micropip = pyodide.pyimport("micropip");
+                await micropip.install(['arabic-reshaper', 'python-bidi']);
+                
+                // Fetch and Install Vazirmatn Font
+                const fontUrl = "https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@master/fonts/ttf/Vazirmatn-Regular.ttf";
+                
+                console.log("Fetching font from:", fontUrl);
+                const response = await fetch(fontUrl);
+                
+                if (response.ok) {
+                    const buffer = await response.arrayBuffer();
+                    if (buffer.byteLength > 1000) {
+                         pyodide.FS.writeFile("Vazirmatn-Regular.ttf", new Uint8Array(buffer));
+                         console.log("Vazirmatn Font installed successfully.");
+                    }
+                } else {
+                    console.warn("Font download failed.");
+                }
+                
+                pyodideReady = true;
+                const statusEl = document.getElementById('pythonStatus');
+                statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500"></span> PYTHON READY';
+
+            } catch (err) {
+                console.error("Pyodide Init Failed:", err);
+                document.getElementById('pythonStatus').innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> PYTHON ERROR';
+            }
+        }
+
+        initPyodide();
+
+        // --- Utility to convert ArrayBuffer to Base64 (to fix encoding error) ---
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        // --- API Key Management ---
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (key) {
+                localStorage.setItem('gemini_api_key', key);
+                apiKey = key;
+                const btn = document.querySelector('button[onclick="saveApiKey()"]');
+                const originalText = btn.innerText;
+                btn.innerText = "Saved!";
+                btn.classList.replace('bg-accent', 'bg-green-600');
+                setTimeout(() => { btn.innerText = originalText; btn.classList.replace('bg-green-600', 'bg-accent'); }, 2000);
+            }
+        }
+        
+        // --- Python Execution Logic ---
+        async function runPythonCode(code, outputDivId, btnId) {
+            const outputDiv = document.getElementById(outputDivId);
+            const btn = document.getElementById(btnId);
+            
+            if (!pyodideReady) {
+                alert("Python environment is still initializing. Please wait a moment.");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="animate-spin w-4 h-4"></i> Running...';
+            lucide.createIcons();
+            
+            outputDiv.style.display = 'block';
+            outputDiv.innerHTML = '<span class="text-yellow-500">Executing...</span>';
+
+            try {
+                // Reset standard output capture
+                pyodide.runPython(`
+import sys
+from io import StringIO
+sys.stdout = StringIO()
+`);
+
+                // Run the Python code
+                await pyodide.runPythonAsync(code);
+
+                // Capture Stdout
+                let stdout = pyodide.runPython("sys.stdout.getvalue()");
+                
+                let chartGeneratedAndDownloaded = false;
+                
+                // Check if chart.png was generated
+                if (pyodide.FS.analyzePath("chart.png").exists) {
+                    
+                    // CRITICAL FIX: Read as binary (Uint8Array/ArrayBuffer) and convert manually to base64
+                    const buffer = pyodide.FS.readFile("chart.png", { encoding: null }); 
+                    const imgData = arrayBufferToBase64(buffer);
+                    
+                    const mimeType = "image/png";
+                    const filename = "chart.png";
+
+                    // Create a temporary anchor element to trigger download
+                    const link = document.createElement('a');
+                    link.href = `data:${mimeType};base64,${imgData}`;
+                    link.download = filename; // Set the download filename
+                    
+                    // Append link to body, trigger click, and remove it
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    // Clean up the generated file from Pyodide's virtual filesystem
+                    pyodide.FS.unlink("chart.png");
+                    chartGeneratedAndDownloaded = true;
+                    
+                    // Display only a download confirmation message in the output div
+                    outputDiv.innerHTML = '<span class="text-green-400">نمودار با کیفیت بالا با موفقیت دانلود شد (chart.png).</span>';
+                }
+                
+                // If no chart was generated, or if there's additional stdout after chart download, display stdout
+                if (!chartGeneratedAndDownloaded && stdout) {
+                    // Display stdout using a pre block to maintain formatting
+                    outputDiv.innerHTML = `<div><pre class="whitespace-pre-wrap text-wrap">${stdout}</pre></div>`;
+                } else if (!chartGeneratedAndDownloaded && !stdout) {
+                    // If neither chart nor stdout, indicate no output
+                    outputDiv.innerHTML = '<span class="text-gray-500">هیچ خروجی یا نموداری تولید نشد.</span>';
+                }
+
+            } catch (err) {
+                // Display the detailed Pyodide error message
+                outputDiv.innerHTML = `<span class="text-red-400">Error: ${err.message}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> اجرای کد';
+                lucide.createIcons();
+            }
+        }
+
+        // --- Initialization and Utility Functions (Unchanged for layout stability) ---
+        try {
+            lucide.createIcons();
+            if (apiKey) document.getElementById('apiKeyInput').value = apiKey;
+            if (typeof marked !== 'undefined') {
+                 marked.use({
+                    renderer: {
+                        code(code, language) {
+                            const validLang = (language && hljs.getLanguage(language)) ? language : 'plaintext';
+                            let highlighted = code;
+                            try { highlighted = hljs.highlight(code, { language: validLang }).value; } catch (e) { console.warn(e); }
+                            return `<div class="mac-terminal" data-code="${encodeURIComponent(code)}" data-lang="${validLang}"><div class="mac-header"><div class="mac-buttons"><div class="mac-dot mac-red"></div><div class="mac-dot mac-yellow"></div><div class="mac-dot mac-green"></div></div><div class="lang-badge">${validLang}</div></div><pre><code class="hljs language-${validLang}">${highlighted}</code></pre></div>`;
+                        }
+                    }
+                });
+            }
+        } catch(e) { console.error("Init Error:", e); }
+
+        const userInput = document.getElementById('userInput');
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+            if(this.value === '') this.style.height = 'auto';
+        });
+
+        // ... (handleFileUpload, updateFilePreviewUI, sendMessage, appendUserMessage, appendAIMessage, showLoading, removeLoading, scrollToBottom functions remain mostly the same, ensuring full code completeness) ...
+
+        function handleFileUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) { alert("File too large (>10MB)."); return; }
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                const base64Data = reader.result.split(',')[1];
+                currentFile = { mimeType: file.type, data: base64Data, preview: reader.result, name: file.name };
+                updateFilePreviewUI();
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function updateFilePreviewUI() {
+            const area = document.getElementById('filePreviewArea');
+            area.innerHTML = '';
+            if (!currentFile) { area.classList.add('hidden'); return; }
+            area.classList.remove('hidden');
+            const div = document.createElement('div');
+            div.className = 'relative group animate-fade-in-up';
+            if (currentFile.mimeType.startsWith('image/')) {
+                div.innerHTML = `<img src="${currentFile.preview}" class="max-h-40 rounded-lg border border-white/20 shadow-md">`;
+            } else {
+                div.innerHTML = `<div class="w-20 h-20 bg-slate-700 rounded-lg flex flex-col items-center justify-center border border-slate-600 shadow-lg"><i data-lucide="file-text" class="text-accent mb-1"></i><span class="text-[8px] text-slate-300 truncate max-w-[90%] px-1">${currentFile.name}</span></div>`;
+            }
+            const close = document.createElement('button');
+            close.className = 'absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition-transform hover:scale-110';
+            close.innerHTML = '<i data-lucide="x" class="w-3 h-3"></i>';
+            close.onclick = () => { currentFile = null; document.getElementById('fileInput').value = ''; updateFilePreviewUI(); };
+            div.appendChild(close);
+            area.appendChild(div);
+            lucide.createIcons();
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text && !currentFile) return;
+            if (!apiKey) { alert("Please enter your Gemini API Key."); return; }
+
+            document.getElementById('emptyState').style.display = 'none';
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            
+            appendUserMessage(text, currentFile);
+
+            const parts = [];
+            if (text) parts.push({ text: text });
+            if (currentFile) parts.push({ inlineData: { mimeType: currentFile.mimeType, data: currentFile.data } });
+
+            const userTurnParts = [...parts];
+            const wasFileAttached = !!currentFile;
+            currentFile = null;
+            updateFilePreviewUI();
+            document.getElementById('fileInput').value = '';
+
+            const loadingId = showLoading();
+
+            try {
+                const historyForApi = chatHistory.map(h => ({ role: h.role, parts: h.parts }));
+                historyForApi.push({ role: "user", parts: userTurnParts });
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: historyForApi, systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] } })
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error?.message || response.statusText);
+                
+                const candidate = data.candidates?.[0];
+                let aiText = "Error generating response."; 
+                if (candidate?.content?.parts?.length > 0) aiText = candidate.content.parts[0].text;
+
+                removeLoading(loadingId);
+                appendAIMessage(aiText);
+                
+                chatHistory.push({ role: 'user', parts: userTurnParts }); 
+                chatHistory.push({ role: 'model', parts: [{ text: aiText }] });
+
+            } catch (err) {
+                removeLoading(loadingId);
+                appendAIMessage(`**Error:** ${err.message}. Check API Key.`);
+            }
+        }
+
+        function appendUserMessage(text, file) {
+            const tpl = document.getElementById('userMsgTemplate');
+            const clone = tpl.content.cloneNode(true);
+            const p = clone.querySelector('p');
+            
+            if (file) {
+                const attachment = clone.querySelector('.file-attachment');
+                attachment.classList.remove('hidden');
+                if (file.mimeType.startsWith('image/')) {
+                    attachment.innerHTML = `<img src="${file.preview}" class="max-h-40 rounded-lg border border-white/20 shadow-md">`;
+                } else {
+                    attachment.innerHTML = `<div class="flex items-center gap-3 bg-slate-800/50 p-3 rounded-lg border border-slate-600"><i data-lucide="file-text" class="text-accent"></i><span class="text-sm text-slate-200">${file.name}</span></div>`;
+                }
+            }
+            if (text) p.textContent = text; else p.style.display = 'none';
+            document.getElementById('chatContainer').appendChild(clone);
+            scrollToBottom();
+            lucide.createIcons();
+        }
+
+        function appendAIMessage(rawMarkdown) {
+            const tpl = document.getElementById('aiMsgTemplate');
+            const clone = tpl.content.cloneNode(true);
+            const contentDiv = clone.querySelector('.markdown-content');
+
+            try {
+                contentDiv.innerHTML = marked.parse(rawMarkdown);
+                renderMathInElement(contentDiv, { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}], throwOnError: false });
+
+                const terminals = contentDiv.querySelectorAll('.mac-terminal');
+                terminals.forEach(term => {
+                    const lang = term.getAttribute('data-lang');
+                    const codeElement = term.querySelector('code');
+                    const code = codeElement ? codeElement.textContent : decodeURIComponent(term.getAttribute('data-code'));
+                    
+                    if (lang === 'python') {
+                        const uniqueId = 'exec-' + Math.random().toString(36).substr(2, 9);
+                        const btnId = 'btn-' + uniqueId;
+                        const container = document.createElement('div');
+                        
+                        const btn = document.createElement('button');
+                        btn.id = btnId;
+                        btn.className = 'run-code-btn';
+                        btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> اجرای کد';
+                        btn.onclick = () => runPythonCode(code, uniqueId, btnId);
+                        
+                        const output = document.createElement('div');
+                        output.id = uniqueId;
+                        output.className = 'exec-output';
+                        
+                        container.appendChild(btn);
+                        container.appendChild(output);
+                        term.parentNode.insertBefore(container, term.nextSibling);
+                    }
+                });
+
+            } catch (e) { console.error(e); contentDiv.textContent = "Error rendering content."; }
+
+            const copyBtn = clone.querySelector('.copy-btn');
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(rawMarkdown);
+                copyBtn.innerHTML = '<i data-lucide="check" class="text-green-400"></i>';
+                setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy"></i>'; lucide.createIcons(); }, 2000);
+            };
+
+            document.getElementById('chatContainer').appendChild(clone);
+            scrollToBottom();
+            lucide.createIcons();
+        }
+
+        function showLoading() {
+            const tpl = document.getElementById('loadingTemplate');
+            const clone = tpl.content.cloneNode(true);
+            const id = 'loader-' + Date.now();
+            clone.querySelector('div').id = id;
+            document.getElementById('chatContainer').appendChild(clone);
+            scrollToBottom();
+            return id;
+        }
+
+        function removeLoading(id) { const el = document.getElementById(id); if(el) el.remove(); }
+        function scrollToBottom() { const c = document.getElementById('chatContainer'); c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' }); }
+    </script>
+</body>
+</html>
